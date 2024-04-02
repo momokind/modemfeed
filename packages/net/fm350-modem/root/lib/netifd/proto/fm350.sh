@@ -53,7 +53,7 @@ proto_fm350_setup() {
 	}
 	pdp=$(echo $pdp | awk '{print toupper($0)}')
 	[ "$pdp" = "IP" -o "$pdp" = "IPV6" -o "$pdp" = "IPV4V6" ] || pdp="IP"
-	echo "Setting up $ifname"
+	
 	[ -n "$delay" ] && sleep "$delay" || sleep 5
 	# [ -n "$username" ] && [ -n "$password" ] && {
 	# 	echo "Using auth type is: $auth"
@@ -65,9 +65,6 @@ proto_fm350_setup() {
 	# 	AUTH=$AUTH USER=$username PASS=$password gcom -d "$device" -s /etc/gcom/fm350-auth.gcom >/dev/null 2>&1
 	# }
 	APN=$apn PDP=$pdp  gcom -d $device -s /etc/gcom/fm350-connect.gcom >/dev/null 2>&1
-	proto_init_update "$ifname" 1
-	proto_add_data
-	proto_close_data
 	DATA=$(gcom -d $device -s /etc/gcom/fm350-config.gcom)
 	ip4addr=$(echo "$DATA" | awk -F [,] '/^\+CGPADDR/{gsub("\r|\"", ""); print $2}') >/dev/null 2>&1
 	lladdr=$(echo "$DATA" | awk -F [,] '/^\+CGPADDR/{gsub("\r|\"", ""); print $3}') >/dev/null 2>&1
@@ -88,8 +85,16 @@ proto_fm350_setup() {
 			defroute=$(echo $ip4addr | awk -F [.] '{print $1"."$2"."$3".1"}')
 		;;
 	esac
+
+	echo "Setting up $ifname"
+	proto_init_update "$ifname" 1
+	proto_add_data
+	proto_close_data
 	proto_set_keep 1
 	ip link set dev $ifname arp off
+
+	local zone="$(fw3 -q network "$interface" 2>/dev/null)"
+
 	echo "PDP type is: $pdp"
 	[ "$pdp" = "IP" -o "$pdp" = "IPV4V6" ] && {
 		if ! [ "$(echo $ip4addr | grep 0.0.0.0)" ]; then
@@ -105,19 +110,25 @@ proto_fm350_setup() {
 			proto_add_dns_server "$dns1"
 			echo "Using IPv4 DNS: $dns1"
 		fi
-		proto_add_data
-		proto_close_data
+		[ -n "$zone" ] && {
+				proto_add_data
+				json_add_string zone "$zone"
+				proto_close_data
+			}
+		#proto_add_data
+		#proto_close_data
 		proto_send_update "$interface"
 	
 	}
 	[ "$pdp" = "IPV6" -o "$pdp" = "IPV4V6" ] && {
-		ip -6 address add ${lladdr}/64 dev $ifname >/dev/null 2>&1
+		#ip -6 address add ${lladdr}/64 dev $ifname >/dev/null 2>&1
 		json_init
 		json_add_string name "${interface}_6"
 		json_add_string ifname "@$interface"
 		json_add_string proto "dhcpv6"
 		json_add_string extendprefix 1
 		proto_add_dynamic_defaults
+		[ -n "$zone" ] && json_add_string zone "$zone"
 		json_close_object
 		ubus call network add_dynamic "$(json_dump)"
 	}
