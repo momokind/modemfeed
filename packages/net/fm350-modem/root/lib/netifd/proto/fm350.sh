@@ -23,8 +23,8 @@ proto_fm350_setup() {
 	local interface="$1"
 	local devname devpath hwaddr ip4addr ip4mask dns1 dns2 defroute lladdr
 	local name ifname proto extendprefix auth username password
-	local device ifname auth username password apn pdp pincode delay $PROTO_DEFAULT_OPTIONS
-	json_get_vars device ifname auth username password apn pdp pincode delay $PROTO_DEFAULT_OPTIONS
+	local device ifname auth username password apn pdp pincode delay mtu $PROTO_DEFAULT_OPTIONS
+	json_get_vars device ifname auth username password apn pdp pincode delay mtu $PROTO_DEFAULT_OPTIONS
 	[ "$metric" = "" ] && metric="0"
 	[ -z $ifname ] && {
 		devname=$(basename $device)
@@ -92,6 +92,10 @@ proto_fm350_setup() {
 	proto_close_data
 	proto_set_keep 1
 	ip link set dev $ifname arp off
+	[ -n "$mtu" ] && {
+		echo "Setting MTU to $mtu"
+		ip link set dev $ifname mtu $mtu
+	}
 
 	local zone="$(fw3 -q network "$interface" 2>/dev/null)"
 

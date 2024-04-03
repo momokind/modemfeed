@@ -4,10 +4,10 @@ opengt
  set senddelay 0.02
  waitquiet 0.2 0.2
 
- send "AT+CGPADDR=1^m"
+ send "AT+CGPADDR=3^m"
  get 1 "" $s
  print $s
 
- send "AT+GTDNS=1^m"
+ send "AT+GTDNS=3^m"
  get 1 "" $s
  print $s
